@@ -1,27 +1,42 @@
 # Contributor: Boris Faure <boris@fau.re>
+# Contributor: Danct12 <danct12@disroot.org>
+# Contributor: Asriel Dreemurr <asriel.danctnix@gmail.com>
 # Maintainer: Boris Faure <boris@fau.re>
 pkgname=efl
-pkgver=1.21.1
+pkgver=1.22.2
 pkgrel=0
 pkgdesc="Enlightenment Foundation Libraries"
 url="https://www.enlightenment.org"
 arch="all !s390x" #luajit not available
 license="BSD-2 GPL-2 LGPL-2.1 ZLIB"
-depends="dbus fontconfig freetype fribidi giflib gstreamer gst-plugins-base \
-	libpng libjpeg-turbo libx11 libxcomposite libxcursor libxdamage \
-	libxinerama libxrandr libxtst libxscrnsaver luajit openssl"
-depends_dev="fontconfig-dev freetype-dev fribidi-dev giflib-dev gstreamer-dev \
-	gst-plugins-base-dev libpng-dev libjpeg-turbo-dev libx11-dev \
-	libxcomposite-dev libxcursor-dev libxdamage-dev libxinerama-dev \
-	libxrandr-dev libxtst-dev libxscrnsaver-dev xorgproto luajit-dev"
-makedepends="$depends_dev dbus-dev openssl-dev"
-options="!check" # Test suite issues
-subpackages="$pkgname-dev"
-source="https://download.enlightenment.org/rel/libs/$pkgname/$pkgname-$pkgver.tar.xz"
+depends="dbus fontconfig lz4-libs openssl glib libjpeg-turbo fribidi giflib
+	libpng tiff libwebp gst-plugins-base avahi eudev bullet
+	libsndfile libmount luajit poppler librsvg libspectre libraw harfbuzz tslib
+	libxkbcommon libinput libxcomposite libxcursor libxinerama libxrandr
+	libxtst libxscrnsaver"
+depends_dev="mesa-dev fontconfig-dev lz4-dev glib-dev libjpeg-turbo-dev
+	fribidi-dev giflib-dev libpng-dev tiff-dev libwebp-dev
+	gst-plugins-base-dev avahi-dev eudev-dev bullet-dev
+	alsa-lib-dev libsndfile-dev luajit-dev poppler-dev librsvg-dev
+	vlc-dev libspectre-dev libraw-dev harfbuzz-dev wayland-protocols wayland-dev
+	tslib-dev libxkbcommon-dev libinput-dev libxcursor-dev libxcomposite-dev
+	libxinerama-dev libxrandr-dev libxtst-dev libxscrnsaver-dev
+	elogind-dev pulseaudio-dev"
+makedepends="$depends_dev autoconf automake dbus-dev openssl-dev doxygen bash texlive"
+options="!check suid" # no testsuite and suid binaries
+subpackages="$pkgname-dev $pkgname-doc $pkgname-lang"
+source="https://download.enlightenment.org/rel/libs/$pkgname/$pkgname-$pkgver.tar.xz
+	musl.patch"
 builddir="$srcdir/$pkgname-$pkgver"
 
 build() {
-	cd "$builddir"
+
+	# Some armhf chips doesn't have NEON
+	case "${CARCH}" in
+	armhf*)	DISABLE_NEON="--disable-neon" ;;
+	esac
+
+
 	./configure \
 		--build=$CBUILD \
 		--host=$CHOST \
@@ -29,44 +44,41 @@ build() {
 		--sysconfdir=/etc \
 		--mandir=/usr/share/man \
 		--localstatedir=/var \
-		--enable-image-loader-png \
-		--disable-audio \
-		--disable-avahi \
-		--disable-cserve \
-		--disable-cocoa \
-		--disable-doc \
-		--disable-eglfs \
-		--disable-elua \
-		--disable-glib \
-		--disable-gesture \
-		--disable-gstreamer \
-		--disable-image-loader-tiff \
-		--disable-image-loader-tgv \
-		--disable-libeeze \
-		--disable-libmount \
-		--disable-libraw \
-		--disable-librsvg \
-		--disable-libvlc \
-		--disable-nls \
-		--disable-neon \
-		--disable-physics \
-		--disable-poppler \
-		--disable-pulseaudio \
-		--disable-spectre \
+		--enable-multisense \
+		--enable-image-loader-webp \
+		--enable-liblz4 \
+		--enable-harfbuzz \
 		--disable-systemd \
-		--disable-tslib \
-		--with-dbus-services= \
-		--with-glib=no \
-		--with-js=none \
-		--with-opengl=none \
+		--enable-pulseaudio \
+		$DISABLE_NEON \
+		--enable-fb \
+		--enable-drm \
+		--enable-gl-drm \
+		--enable-elput \
+		--enable-elogind \
+		--with-opengl=es \
+		--enable-egl \
+		--enable-wayland \
+		--enable-wayland-ivi-shell \
 		--with-x \
+		--enable-xinput22 \
 		--with-x11=xlib
 	make
+
+	cd doc
+	doxygen
 }
 
 package() {
-	cd "$builddir"
-	make DESTDIR="$pkgdir" install
+	make -j1 DESTDIR="$pkgdir" install
 }
 
-sha512sums="1e26a57fca84ec85e45d707ee57abc50bd18edfa82e478e586300b6ad5ab8b9103a54a656902d29d80425988a6116a40aa01758fb8dd581dd48334ca0f4d5a63  efl-1.21.1.tar.xz"
+doc() {
+	default_doc
+	install -d "${subpkgdir}/usr/share/doc/${pkgname}"
+	cp -a "$builddir"/doc/html "${subpkgdir}/usr/share/doc/${pkgname}/html"
+	cp -a "$builddir"/doc/latex "${subpkgdir}/usr/share/doc/${pkgname}/latex"
+}
+
+sha512sums="7385b1fdeee0a4565a0765fedbe5cecca81b86b306ee95a703b3064a88427ab0b4967f6f075a92f5c1d5911cefc56a9c2d45c7347572480169e3f53348321734  efl-1.22.2.tar.xz
+42db5361fb58a14a39ac850dcc2fa4cb6d257e65b7dc23baacfb41f1bbb0158be0f7798793882bd7f7736d789f10d4d585138db7655356f7a18069bf44f30315  musl.patch"
